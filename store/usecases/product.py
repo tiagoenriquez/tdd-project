@@ -19,6 +19,7 @@ class ProductUsecase:
         await self.collection.insert_one(product_model.model_dump())
 
         return ProductOut(**product_model.model_dump())
+    
 
     async def get(self, id: UUID) -> ProductOut:
         result = await self.collection.find_one({"id": id})
@@ -27,18 +28,25 @@ class ProductUsecase:
             raise NotFoundException(message=f"Product not found with filter: {id}")
 
         return ProductOut(**result)
+    
 
     async def query(self) -> List[ProductOut]:
-        return [ProductOut(**item) async for item in self.collection.find()]
+        return [ProductOut(**item) async for item in self.collection.find({'price': {'$gt': 5000, '$lt': 8000}})]
+    
 
-    async def update(self, id: UUID, body: ProductUpdate) -> ProductUpdateOut:
-        result = await self.collection.find_one_and_update(
-            filter={"id": id},
-            update={"$set": body.model_dump(exclude_none=True)},
-            return_document=pymongo.ReturnDocument.AFTER,
-        )
+    async def update(self, id: UUID, body: ProductUpdate) -> ProductUpdateOut | None:
+        try:
+            result = await self.collection.find_one_and_update(
+                filter={"id": id},
+                update={"$set": body.model_dump(exclude_none=True)},
+                return_document=pymongo.ReturnDocument.AFTER,
+            )
 
-        return ProductUpdateOut(**result)
+            return ProductUpdateOut(**result)
+        
+        except TypeError as exc:
+            raise NotFoundException(f"Operação de atualização mal sucessidida\n{exc.args[0]}")
+        
 
     async def delete(self, id: UUID) -> bool:
         product = await self.collection.find_one({"id": id})
@@ -46,7 +54,6 @@ class ProductUsecase:
             raise NotFoundException(message=f"Product not found with filter: {id}")
 
         result = await self.collection.delete_one({"id": id})
-
         return True if result.deleted_count > 0 else False
 
 

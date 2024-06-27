@@ -17,7 +17,7 @@ async def post(
         return await usecase.create(body=body)
     except HTTPException as httpException:
         if httpException.status_code == 422:
-            return HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Envio de dados em formato errado")
+            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Envio de dados em formato errado")
         else:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=httpException.message)
 
@@ -43,7 +43,10 @@ async def patch(
     body: ProductUpdate = Body(...),
     usecase: ProductUsecase = Depends(),
 ) -> ProductUpdateOut:
-    return await usecase.update(id=id, body=body)
+    try:
+        return await usecase.update(id=id, body=body)
+    except NotFoundException as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=exc.message)
 
 
 @router.delete(path="/{id}", status_code=status.HTTP_204_NO_CONTENT)
